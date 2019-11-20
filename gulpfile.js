@@ -4,6 +4,7 @@ var gulp = require("gulp"),
     autoprefixer = require("autoprefixer"),
     cssnano = require("cssnano"),
     sourcemaps = require("gulp-sourcemaps"),
+    concat = require('gulp-concat'),
     browserSync = require("browser-sync").create();
 
 var paths = {
@@ -11,10 +12,22 @@ var paths = {
         // By using styles/**/*.sass we're telling gulp to check all folders for any sass file
         src: ["src/scss/*.scss"],
         // Compiled files will end up in whichever folder it's found in (partials are not compiled)
-        dest: "src/css"
+        dest: "src/dist/css"
+    },
+    script: {
+        src: ["src/js/*.js"],
+        dest: "src/dist/js"
     }
 };
 
+function script() {
+    return gulp
+    .src(paths.script.src)
+    .pipe(concat('all.min.js'))
+    .pipe(gulp.dest(paths.script.dest))
+    // Add browsersync stream pipe after compilation
+    .pipe(browserSync.stream());
+}
 
 function style() {
     return gulp
@@ -24,6 +37,7 @@ function style() {
         .pipe(sass())
         .on("error", sass.logError)
         // Use postcss with autoprefixer and compress the compiled file using cssnano
+        .pipe(concat('main.css'))
         .pipe(postcss([autoprefixer({
             browsers: ['last 2 versions'],
             cascade: false
@@ -52,6 +66,7 @@ function watch() {
         // proxy: "yourlocal.dev"
     });
     gulp.watch(paths.styles.src, style);
+    gulp.watch(paths.script.src, script);
     // We should tell gulp which files to watch to trigger the reload
     // This can be html or whatever you're using to develop your website
     // Note -- you can obviously add the path to the Paths object
@@ -71,10 +86,12 @@ exports.watch = watch
 // $ gulp style
 exports.style = style;
 
+exports.script = script;
+
 /*
  * Specify if tasks run in series or parallel using `gulp.series` and `gulp.parallel`
  */
-var build = gulp.parallel(style, watch);
+var build = gulp.parallel(style, script, watch);
 
 /*
  * You can still use `gulp.task` to expose tasks
