@@ -9,7 +9,6 @@ const copenhagen = {
 
 // initialize Google Maps
 function initMap() {
-
     map = new google.maps.Map(
         document.getElementById('map'), {
             center: copenhagen
@@ -26,14 +25,6 @@ function initMap() {
     });
 
     getMapData('../../data/data1.json', onDataLoaded);
-}
-
-// removes existing map markers
-function clearMarkers() {
-    for (var i = 0; i < markers.length; i++) {
-        markers[i].setMap(null);
-    }
-    markers.length = 0;
 }
 
 // render markers
@@ -71,12 +62,55 @@ function renderMapMarkers(data) {
     }
 }
 
-// on load JSON button click
-function onDataButtonClick(e) {
-    const dataUrl = e.target.getAttribute('data-url');
-
-    getMapData(dataUrl, onDataLoaded);
+// removes existing map markers
+function clearMarkers() {
+    for (var i = 0; i < markers.length; i++) {
+        markers[i].setMap(null);
+    }
+    markers.length = 0;
 }
+
+
+// load JSON data
+function getMapData(url, callback) {
+    const xobj = new XMLHttpRequest();
+
+    xobj.overrideMimeType("application/json");
+
+    xobj.open('GET', url, true);
+
+    xobj.onreadystatechange = function () {
+        if (xobj.readyState == 4) {
+            if (xobj.status == "200") {
+                // on success call callback method
+                callback(xobj.responseText);
+            } else {
+                // very simple error handling
+                console.log(`Error: ${xobj.statusText}`);
+            }
+        }
+    };
+
+    xobj.send(null);
+}
+
+// on JSON data loaded callback
+function onDataLoaded(response) {
+    // parse json
+    var data = JSON.parse(response);
+    propertyData = data;
+
+    updateForm(data);
+
+    // remove existing markers
+    clearMarkers();
+
+    // render map
+    renderMapMarkers(data);
+
+    console.log(data);
+}
+
 
 // build JSON data buttons
 function buildButtons() {
@@ -87,6 +121,13 @@ function buildButtons() {
         const b = btnList[i];
         b.addEventListener('click', onDataButtonClick);
     }
+}
+
+// on load JSON button click
+function onDataButtonClick(e) {
+    const dataUrl = e.target.getAttribute('data-url');
+
+    getMapData(dataUrl, onDataLoaded);
 }
 
 function buildFilterForm() {
@@ -106,24 +147,16 @@ function buildFilterForm() {
     }
 }
 
-function renderSelect(select, textobj, valueobj = null) {
-    const emptyOpt = document.createElement('option');
+function onFormFieldChange(event) {
+    const filteredData = getFilteredData();
 
-    // remove all existing options
-    clearSelectOptions(select);
+    console.log(filteredData);
 
-    // harcode first option
-    emptyOpt.innerHTML = '';
+    // remove existing markers
+    clearMarkers(event.currentTarget);
 
-    select.appendChild(emptyOpt);
-
-    // add options to select
-    for (var i = 0; i < textobj.length; i++) {
-        const opt = document.createElement('option');
-        opt.value = valueobj ? valueobj[i] : textobj[i];
-        opt.innerHTML = textobj[i];
-        select.appendChild(opt);
-    }
+    // render map
+    renderMapMarkers(filteredData);
 }
 
 // update filterform according to data
@@ -147,23 +180,31 @@ function updateForm(data) {
     document.getElementById('search').value = '';
 }
 
+function renderSelect(select, textobj, valueobj = null) {
+    const emptyOpt = document.createElement('option');
+
+    // remove all existing options
+    clearSelectOptions(select);
+
+    // harcode first option
+    emptyOpt.innerHTML = '';
+
+    select.appendChild(emptyOpt);
+
+    // add options to select
+    for (var i = 0; i < textobj.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = valueobj ? valueobj[i] : textobj[i];
+        opt.innerHTML = textobj[i];
+        select.appendChild(opt);
+    }
+}
+
 // clear all options from select
 function clearSelectOptions(select) {
     for (i = select.options.length - 1; i >= 0; i--) {
         select.remove(i);
     }
-}
-
-function onFormFieldChange(event) {
-    const filteredData = getFilteredData();
-
-    console.log(filteredData);
-
-    // remove existing markers
-    clearMarkers(event.currentTarget);
-
-    // render map
-    renderMapMarkers(filteredData);
 }
 
 function getFilteredData(elem) {
@@ -177,7 +218,7 @@ function getFilteredData(elem) {
         filter_price1: document.getElementById('check1').checked,
         filter_price2: document.getElementById('check2').checked
     };
-    
+
     if (formfieldsData.filter_address) {
         filterarr = filterarr.filter(function (el) {
             return (el.address1).toLowerCase().indexOf((formfieldsData.filter_address).toLowerCase()) > -1;
@@ -215,46 +256,6 @@ function getFilteredData(elem) {
     }
 
     return filterarr;
-}
-
-// on JSON data loaded callback
-function onDataLoaded(response) {
-    // parse json
-    var data = JSON.parse(response);
-    propertyData = data;
-
-    updateForm(data);
-
-    // remove existing markers
-    clearMarkers();
-
-    // render map
-    renderMapMarkers(data);
-
-    console.log(data);
-}
-
-// load JSON data
-function getMapData(url, callback) {
-    const xobj = new XMLHttpRequest();
-
-    xobj.overrideMimeType("application/json");
-
-    xobj.open('GET', url, true);
-
-    xobj.onreadystatechange = function () {
-        if (xobj.readyState == 4) {
-            if (xobj.status == "200") {
-                // on success call callback method
-                callback(xobj.responseText);
-            } else {
-                // very simple error handling
-                console.log(`Error: ${xobj.statusText}`);
-            }
-        }
-    };
-
-    xobj.send(null);
 }
 
 // run
