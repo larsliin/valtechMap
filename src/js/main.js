@@ -2,17 +2,17 @@ let map;
 let markers = [];
 let infowindow;
 let propertyData;
+const copenhagen = {
+    lat: 55.676098,
+    lng: 12.568337
+};
 
 // initialize Google Maps
 function initMap() {
-    const denmark = {
-        lat: 56.2639198,
-        lng: 9.5017853
-    };
 
     map = new google.maps.Map(
         document.getElementById('map'), {
-            center: denmark
+            center: copenhagen
         });
 
     // show map when tiles are loaded
@@ -40,30 +40,35 @@ function clearMarkers() {
 function renderMapMarkers(data) {
     const bounds = new google.maps.LatLngBounds();
 
-    for (var i = 0; i < data.length; i++) {
-        const elem = data[i];
-        const latLon = elem.latLon;
-        const pos = new google.maps.LatLng(latLon.lat, latLon.lon);
-        const contentString = `<div><span class="map__infoheader">${elem.address1}</span></div><div class="map__infogroup--spacer">${elem.zipCode.zipCodeId} ${elem.zipCode.name}</div><div class="map__infogroup--spacer">Type: ${elem.propertyType.name}</div><div class="map__infogroup--spacer">Antal værelser: ${elem.totalNumberOfRooms}</div><div class="map__infogroup--spacer">Pris: ${elem.price}</div><div class="map__infogroup--spacer">Mægler: ${elem.broker.brokerName}</div>`;
+    if (data.length) {
+        for (var i = 0; i < data.length; i++) {
+            const elem = data[i];
+            const latLon = elem.latLon;
+            const pos = new google.maps.LatLng(latLon.lat, latLon.lon);
+            const contentString = `<div><span class="map__infoheader">${elem.address1}</span></div><div class="map__infogroup--spacer">${elem.zipCode.zipCodeId} ${elem.zipCode.name}</div><div class="map__infogroup--spacer">Type: ${elem.propertyType.name}</div><div class="map__infogroup--spacer">Antal værelser: ${elem.totalNumberOfRooms}</div><div class="map__infogroup--spacer">Pris: ${elem.price}</div><div class="map__infogroup--spacer">Mægler: ${elem.broker.brokerName}</div>`;
 
-        markers[i] = new google.maps.Marker({
-            position: pos,
-            map: map,
-            description: elem.address1,
-            content: contentString,
-            id: i
-        });
+            markers[i] = new google.maps.Marker({
+                position: pos,
+                map: map,
+                description: elem.address1,
+                content: contentString,
+                id: i
+            });
 
-        google.maps.event.addListener(markers[i], 'click', function (e) {
-            const ContentString = this.contentString;
-            infowindow.setContent(this.content);
-            infowindow.open(map, markers[this.id]);
-        });
+            google.maps.event.addListener(markers[i], 'click', function (e) {
+                const ContentString = this.contentString;
+                infowindow.setContent(this.content);
+                infowindow.open(map, markers[this.id]);
+            });
 
-        bounds.extend(markers[i].position);
+            bounds.extend(markers[i].position);
+        }
+        map.fitBounds(bounds);
+    } else {
+        map.setCenter(new google.maps.LatLng(copenhagen.lat, copenhagen.lng));
+
+        map.setZoom(11);
     }
-
-    map.fitBounds(bounds);
 }
 
 // on load JSON button click
@@ -87,6 +92,8 @@ function buildButtons() {
 function buildFilterForm() {
     const selectDropdownList = document.getElementsByTagName('select');
     const checkboxList = document.getElementsByClassName('form-check-input');
+
+    document.getElementById('search').addEventListener('keyup', onFormFieldChange);
 
     for (let i = 0; i < selectDropdownList.length; i++) {
         const element = selectDropdownList[i];
@@ -136,6 +143,8 @@ function updateForm(data) {
     const brokerId = [...new Set(data.map(item => item.broker.brokerId))];
 
     renderSelect(document.getElementById('filter_broker'), brokerName, brokerId);
+
+    document.getElementById('search').value = '';
 }
 
 // clear all options from select
@@ -146,7 +155,6 @@ function clearSelectOptions(select) {
 }
 
 function onFormFieldChange(event) {
-
     const filteredData = getFilteredData();
 
     console.log(filteredData);
@@ -155,41 +163,57 @@ function onFormFieldChange(event) {
     clearMarkers(event.currentTarget);
 
     // render map
-    renderMapMarkers(filteredData.length ? filteredData : propertyData);
+    renderMapMarkers(filteredData);
 }
 
 function getFilteredData(elem) {
-    let filterarr = [];
+    let filterarr = propertyData;
 
     const formfieldsData = {
-        filter_type: document.getElementById('filter_type').value != '' ? document.getElementById('filter_type').value : null,
-        filter_roomstotal: document.getElementById('filter_roomstotal').value != '' ? document.getElementById('filter_roomstotal').value : null,
-        filter_broker: document.getElementById('filter_broker').value != '' ? document.getElementById('filter_broker').value : null
+        filter_address: document.getElementById('search').value != '' ? document.getElementById('search').value : null,
+        filter_type: document.getElementById('filter_type').value != '' ? document.getElementById('filter_type').value : null, /// propertyType.propertyTypeId
+        filter_roomstotal: document.getElementById('filter_roomstotal').value != '' ? document.getElementById('filter_roomstotal').value : null, // totalNumberOfRooms
+        filter_broker: document.getElementById('filter_broker').value != '' ? document.getElementById('filter_broker').value : null, // broker.brokerId
+        filter_price1: document.getElementById('check1').checked,
+        filter_price2: document.getElementById('check2').checked
     };
-
-    for (let i = 0; i < propertyData.length; i++) {
-        let add = false;
-        const o = propertyData[i];
-
-        if (formfieldsData.filter_type) {
-            if (String(o.propertyType.propertyTypeId) == formfieldsData.filter_type) {
-                add = true;
-            }
-        }
-        if (formfieldsData.filter_roomstotal) {
-            if (String(o.totalNumberOfRooms) == formfieldsData.filter_roomstotal) {
-                add = true;
-            }
-        }
-        if (formfieldsData.filter_broker) {
-            if (String(o.broker.brokerId) == formfieldsData.filter_broker) {
-                add = true;
-            }
-        }
-        if (add) {
-            filterarr.push(o);
-        }
+    
+    if (formfieldsData.filter_address) {
+        filterarr = filterarr.filter(function (el) {
+            return (el.address1).toLowerCase().indexOf((formfieldsData.filter_address).toLowerCase()) > -1;
+        });
     }
+
+    if (formfieldsData.filter_type) {
+        filterarr = filterarr.filter(function (el) {
+            return el.propertyType.propertyTypeId == formfieldsData.filter_type;
+        });
+    }
+
+    if (formfieldsData.filter_roomstotal) {
+        filterarr = filterarr.filter(function (el) {
+            return el.totalNumberOfRooms == formfieldsData.filter_roomstotal;
+        });
+    }
+
+    if (formfieldsData.filter_broker) {
+        filterarr = filterarr.filter(function (el) {
+            return el.broker.brokerId == formfieldsData.filter_broker;
+        });
+    }
+
+    if (formfieldsData.filter_price1) {
+        filterarr = filterarr.filter(function (el) {
+            return parseInt(el.price) <= 4000000;
+        });
+    }
+
+    if (formfieldsData.filter_price2) {
+        filterarr = filterarr.filter(function (el) {
+            return parseInt(el.price) > 4000000;
+        });
+    }
+
     return filterarr;
 }
 
