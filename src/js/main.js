@@ -2,17 +2,17 @@ let map;
 let markers = [];
 let infowindow;
 let propertyData;
-const copenhagen = {
-    lat: 55.676098,
-    lng: 12.568337
-};
+let bounds;
+let copenhagen = { lat: 55.676098, lng: 12.568337 };
+const isFitBounds = false;
 
 // initialize Google Maps
 function initMap() {
     map = new google.maps.Map(
         document.getElementById('map'), {
-            center: copenhagen
-        });
+            center: copenhagen,
+            zoom: 13
+          });
 
     // show map when tiles are loaded
     google.maps.event.addListenerOnce(map, 'tilesloaded', function () {
@@ -24,13 +24,15 @@ function initMap() {
         maxWidth: 250
     });
 
+    // load data when map is ready
     getMapData('../../data/data1.json', onDataLoaded);
 }
 
 // render markers
 function renderMapMarkers(data) {
-    const bounds = new google.maps.LatLngBounds();
+    bounds = new google.maps.LatLngBounds();
 
+    // loop through all properties and render markers
     if (data.length) {
         for (var i = 0; i < data.length; i++) {
             const elem = data[i];
@@ -54,7 +56,9 @@ function renderMapMarkers(data) {
 
             bounds.extend(markers[i].position);
         }
-        map.fitBounds(bounds);
+        if(isFitBounds){
+            map.fitBounds(bounds);
+        }
     } else {
         map.setCenter(new google.maps.LatLng(copenhagen.lat, copenhagen.lng));
 
@@ -69,7 +73,6 @@ function clearMarkers() {
     }
     markers.length = 0;
 }
-
 
 // load JSON data
 function getMapData(url, callback) {
@@ -98,8 +101,10 @@ function getMapData(url, callback) {
 function onDataLoaded(response) {
     // parse json
     var data = JSON.parse(response);
+    
     propertyData = data;
 
+    // update filterform acording to current data
     updateForm(data);
 
     // remove existing markers
@@ -108,9 +113,11 @@ function onDataLoaded(response) {
     // render map
     renderMapMarkers(data);
 
-    console.log(data);
+    // 
+    if(!isFitBounds){
+        map.fitBounds(bounds);
+    }
 }
-
 
 // build JSON data buttons
 function buildButtons() {
@@ -130,6 +137,7 @@ function onDataButtonClick(e) {
     getMapData(dataUrl, onDataLoaded);
 }
 
+// build filterform and apply eventlisteners and handlers
 function buildFilterForm() {
     const selectDropdownList = document.getElementsByTagName('select');
     const checkboxList = document.getElementsByClassName('form-check-input');
@@ -150,8 +158,6 @@ function buildFilterForm() {
 function onFormFieldChange(event) {
     const filteredData = getFilteredData();
 
-    console.log(filteredData);
-
     // remove existing markers
     clearMarkers(event.currentTarget);
 
@@ -162,16 +168,19 @@ function onFormFieldChange(event) {
 // update filterform according to data
 function updateForm(data) {
     // render select "type"
+    // get all unique property types from data
     const types = [...new Set(data.map(item => item.propertyType.name))];
     const typesId = [...new Set(data.map(item => item.propertyType.propertyTypeId))];
-
+    
     renderSelect(document.getElementById('filter_type'), types, typesId);
 
     // render select "rooms"
+    // get all unique rooms from data
     const roomsTotal = [...new Set(data.map(item => item.totalNumberOfRooms))];
     renderSelect(document.getElementById('filter_roomstotal'), roomsTotal);
 
     // render select "broker"
+    // get all unique brokers from data
     const brokerName = [...new Set(data.map(item => item.broker.brokerName))];
     const brokerId = [...new Set(data.map(item => item.broker.brokerId))];
 
@@ -186,16 +195,24 @@ function renderSelect(select, textobj, valueobj = null) {
     // remove all existing options
     clearSelectOptions(select);
 
+    // push textstring and values into array of objects for sorting and better transparancy
+    let o = [];
+    for (let i = 0; i < textobj.length; i++) {
+        const label = textobj[i];
+        const val = valueobj ? valueobj[i] : textobj[i];
+        o.push({label: textobj[i], val: val});        
+    }
+
     // harcode first option
     emptyOpt.innerHTML = '';
 
     select.appendChild(emptyOpt);
 
     // add options to select
-    for (var i = 0; i < textobj.length; i++) {
+    for (var i = 0; i < o.length; i++) {
         const opt = document.createElement('option');
-        opt.value = valueobj ? valueobj[i] : textobj[i];
-        opt.innerHTML = textobj[i];
+        opt.value = o[i].val ? o[i].val : o[i].label;
+        opt.innerHTML = o[i].label;
         select.appendChild(opt);
     }
 }
@@ -207,12 +224,13 @@ function clearSelectOptions(select) {
     }
 }
 
+// returns filtered data
 function getFilteredData(elem) {
     let filterarr = propertyData;
 
     const formfieldsData = {
         filter_address: document.getElementById('search').value != '' ? document.getElementById('search').value : null,
-        filter_type: document.getElementById('filter_type').value != '' ? document.getElementById('filter_type').value : null, /// propertyType.propertyTypeId
+        filter_type: document.getElementById('filter_type').value != '' ? document.getElementById('filter_type').value : null, // propertyType.propertyTypeId
         filter_roomstotal: document.getElementById('filter_roomstotal').value != '' ? document.getElementById('filter_roomstotal').value : null, // totalNumberOfRooms
         filter_broker: document.getElementById('filter_broker').value != '' ? document.getElementById('filter_broker').value : null, // broker.brokerId
         filter_price1: document.getElementById('check1').checked,
@@ -242,20 +260,29 @@ function getFilteredData(elem) {
             return el.broker.brokerId == formfieldsData.filter_broker;
         });
     }
-
+    let resultarr = [];
+    let p1 = [];
+    let p2 = [];
     if (formfieldsData.filter_price1) {
-        filterarr = filterarr.filter(function (el) {
+        p1 = filterarr.filter(function (el) {
             return parseInt(el.price) <= 4000000;
         });
     }
 
+
     if (formfieldsData.filter_price2) {
-        filterarr = filterarr.filter(function (el) {
+        p2 = filterarr.filter(function (el) {
             return parseInt(el.price) > 4000000;
         });
     }
+    
+    if(p1.length || p2.length){
+        resultarr = [...p1, ...p2];
+    }else{
+        resultarr = filterarr;
+    }
 
-    return filterarr;
+    return resultarr;
 }
 
 // run
