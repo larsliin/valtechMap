@@ -278,21 +278,26 @@ function getFilteredData(elem) {
         });
     }
 
-    // combine price arrays into one array
+    // combine temp price arrays into one array
     if (formfieldsData.filter_price1 || formfieldsData.filter_price2) {
         resultArr = [...priceArr1, ...priceArr2];
     } else {
         resultArr = tmpFilterArr;
     }
-
+    
     return resultArr;
 }
 
 function getFormData() {
     const formfieldsData = {};
     const inpList = document.getElementsByClassName('frm__inp');
+
     [...inpList].forEach((elem) => {
-        formfieldsData[elem.getAttribute('id')] = elem.value != '' ? elem.value : null;
+        if (elem.getAttribute('type') === 'checkbox') {
+            formfieldsData[elem.getAttribute('id')] = elem.checked;
+        } else {
+            formfieldsData[elem.getAttribute('id')] = elem.value != '' ? elem.value : null;
+        }
     });
     return formfieldsData;
 }
