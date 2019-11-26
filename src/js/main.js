@@ -1,18 +1,22 @@
+let propertyData;
+let isFirstRun = true;
 let map;
 let markers = [];
 let infowindow;
-let propertyData;
 let bounds;
-let copenhagen = { lat: 55.676098, lng: 12.568337 };
+let copenhagen = {
+    lat: 55.676098,
+    lng: 12.568337
+};
+let isMapZoomedOut = false;
 const isFitBounds = false;
 
-// initialize Google Maps
 function initMap() {
     map = new google.maps.Map(
         document.getElementById('map'), {
             center: copenhagen,
             zoom: 13
-          });
+        });
 
     // show map when tiles are loaded
     google.maps.event.addListenerOnce(map, 'tilesloaded', function () {
@@ -34,17 +38,15 @@ function renderMapMarkers(data) {
 
     // loop through all properties and render markers
     if (data.length) {
+        // if markers
         for (var i = 0; i < data.length; i++) {
             const elem = data[i];
-            const latLon = elem.latLon;
-            const pos = new google.maps.LatLng(latLon.lat, latLon.lon);
-            const contentString = `<div><span class="map__infoheader">${elem.address1}</span></div><div class="map__infogroup--spacer">${elem.zipCode.zipCodeId} ${elem.zipCode.name}</div><div class="map__infogroup--spacer">Type: ${elem.propertyType.name}</div><div class="map__infogroup--spacer">Antal værelser: ${elem.totalNumberOfRooms}</div><div class="map__infogroup--spacer">Pris: ${elem.price}</div><div class="map__infogroup--spacer">Mægler: ${elem.broker.brokerName}</div>`;
 
             markers[i] = new google.maps.Marker({
-                position: pos,
+                position: new google.maps.LatLng(elem.latLon.lat, elem.latLon.lon),
                 map: map,
                 description: elem.address1,
-                content: contentString,
+                content: `<div><span class="map__infoheader">${elem.address1}</span></div><div class="map__infogroup--spacer">${elem.zipCode.zipCodeId} ${elem.zipCode.name}</div><div class="map__infogroup--spacer">Type: ${elem.propertyType.name}</div><div class="map__infogroup--spacer">Antal værelser: ${elem.totalNumberOfRooms}</div><div class="map__infogroup--spacer">Pris: ${elem.price}</div><div class="map__infogroup--spacer">Mægler: ${elem.broker.brokerName}</div>`,
                 id: i
             });
 
@@ -56,22 +58,31 @@ function renderMapMarkers(data) {
 
             bounds.extend(markers[i].position);
         }
-        if(isFitBounds){
+
+        if (isFitBounds) {
             map.fitBounds(bounds);
         }
+
+        if (isMapZoomedOut) {
+            map.fitBounds(bounds);
+            map.setZoom(13);
+        }
     } else {
+        // if no markers zoom out
         map.setCenter(new google.maps.LatLng(copenhagen.lat, copenhagen.lng));
 
         map.setZoom(11);
+
+        isMapZoomedOut = true;
     }
 }
 
 // removes existing map markers
-function clearMarkers() {
-    for (var i = 0; i < markers.length; i++) {
-        markers[i].setMap(null);
+function clearMarkers(m) {
+    for (var i = 0; i < m.length; i++) {
+        m[i].setMap(null);
     }
-    markers.length = 0;
+    m.length = 0;
 }
 
 // load JSON data
@@ -101,20 +112,27 @@ function getMapData(url, callback) {
 function onDataLoaded(response) {
     // parse json
     var data = JSON.parse(response);
-    
+
     propertyData = data;
+
+    if (isFirstRun) {
+        buildButtons();
+
+        buildFilterForm();
+
+        isFirstRun = false;
+    }
 
     // update filterform acording to current data
     updateForm(data);
 
     // remove existing markers
-    clearMarkers();
+    clearMarkers(markers);
 
     // render map
     renderMapMarkers(data);
 
-    // 
-    if(!isFitBounds){
+    if (!isFitBounds) {
         map.fitBounds(bounds);
     }
 }
@@ -159,7 +177,7 @@ function onFormFieldChange(event) {
     const filteredData = getFilteredData();
 
     // remove existing markers
-    clearMarkers(event.currentTarget);
+    clearMarkers(markers);
 
     // render map
     renderMapMarkers(filteredData);
@@ -171,7 +189,7 @@ function updateForm(data) {
     // get all unique property types from data
     const types = [...new Set(data.map(item => item.propertyType.name))];
     const typesId = [...new Set(data.map(item => item.propertyType.propertyTypeId))];
-    
+
     renderSelect(document.getElementById('filter_type'), types, typesId);
 
     // render select "rooms"
@@ -195,24 +213,16 @@ function renderSelect(select, textobj, valueobj = null) {
     // remove all existing options
     clearSelectOptions(select);
 
-    // push textstring and values into array of objects for sorting and better transparancy
-    let o = [];
-    for (let i = 0; i < textobj.length; i++) {
-        const label = textobj[i];
-        const val = valueobj ? valueobj[i] : textobj[i];
-        o.push({label: textobj[i], val: val});        
-    }
-
-    // harcode first option
+    // first option empty
     emptyOpt.innerHTML = '';
 
     select.appendChild(emptyOpt);
 
     // add options to select
-    for (var i = 0; i < o.length; i++) {
+    for (var i = 0; i < textobj.length; i++) {
         const opt = document.createElement('option');
-        opt.value = o[i].val ? o[i].val : o[i].label;
-        opt.innerHTML = o[i].label;
+        opt.value = valueobj ? valueobj[i] : textobj[i];
+        opt.innerHTML = textobj[i];
         select.appendChild(opt);
     }
 }
@@ -226,70 +236,63 @@ function clearSelectOptions(select) {
 
 // returns filtered data
 function getFilteredData(elem) {
-    let filterarr = propertyData;
-
-    const formfieldsData = {
-        filter_address: document.getElementById('search').value != '' ? document.getElementById('search').value : null,
-        filter_type: document.getElementById('filter_type').value != '' ? document.getElementById('filter_type').value : null, // propertyType.propertyTypeId
-        filter_roomstotal: document.getElementById('filter_roomstotal').value != '' ? document.getElementById('filter_roomstotal').value : null, // totalNumberOfRooms
-        filter_broker: document.getElementById('filter_broker').value != '' ? document.getElementById('filter_broker').value : null, // broker.brokerId
-        filter_price1: document.getElementById('check1').checked,
-        filter_price2: document.getElementById('check2').checked
-    };
+    let tmpFilterArr = propertyData,
+        resultArr = [],
+        priceArr1 = [],
+        priceArr2 = [],
+        formfieldsData = getFormData();
 
     if (formfieldsData.filter_address) {
-        filterarr = filterarr.filter(function (el) {
+        tmpFilterArr = tmpFilterArr.filter(function (el) {
             return (el.address1).toLowerCase().indexOf((formfieldsData.filter_address).toLowerCase()) > -1;
         });
     }
 
     if (formfieldsData.filter_type) {
-        filterarr = filterarr.filter(function (el) {
+        tmpFilterArr = tmpFilterArr.filter(function (el) {
             return el.propertyType.propertyTypeId == formfieldsData.filter_type;
         });
     }
 
     if (formfieldsData.filter_roomstotal) {
-        filterarr = filterarr.filter(function (el) {
+        tmpFilterArr = tmpFilterArr.filter(function (el) {
             return el.totalNumberOfRooms == formfieldsData.filter_roomstotal;
         });
     }
 
     if (formfieldsData.filter_broker) {
-        filterarr = filterarr.filter(function (el) {
+        tmpFilterArr = tmpFilterArr.filter(function (el) {
             return el.broker.brokerId == formfieldsData.filter_broker;
         });
     }
-    let resultarr = [];
-    let p1 = [];
-    let p2 = [];
+
     if (formfieldsData.filter_price1) {
-        p1 = filterarr.filter(function (el) {
+        priceArr1 = tmpFilterArr.filter(function (el) {
             return parseInt(el.price) <= 4000000;
         });
     }
 
-
     if (formfieldsData.filter_price2) {
-        p2 = filterarr.filter(function (el) {
+        priceArr2 = tmpFilterArr.filter(function (el) {
             return parseInt(el.price) > 4000000;
         });
     }
-    
-    if(p1.length || p2.length){
-        resultarr = [...p1, ...p2];
-    }else{
-        resultarr = filterarr;
+
+    // combine price arrays into one array
+    if (formfieldsData.filter_price1 || formfieldsData.filter_price2) {
+        resultArr = [...priceArr1, ...priceArr2];
+    } else {
+        resultArr = tmpFilterArr;
     }
 
-    return resultarr;
+    return resultArr;
 }
 
-// run
-function init() {
-    buildButtons();
-
-    buildFilterForm();
+function getFormData() {
+    const formfieldsData = {};
+    const inpList = document.getElementsByClassName('frm__inp');
+    [...inpList].forEach((elem) => {
+        formfieldsData[elem.getAttribute('id')] = elem.value != '' ? elem.value : null;
+    });
+    return formfieldsData;
 }
-
-init();
