@@ -9,7 +9,6 @@ let copenhagen = {
     lng: 12.568337
 };
 let isMapZoomedOut = false;
-const isFitBounds = false;
 
 function initMap() {
     map = new google.maps.Map(
@@ -57,10 +56,6 @@ function renderMapMarkers(data) {
             });
 
             bounds.extend(markers[i].position);
-        }
-
-        if (isFitBounds) {
-            map.fitBounds(bounds);
         }
 
         if (isMapZoomedOut) {
@@ -132,9 +127,7 @@ function onDataLoaded(response) {
     // render map
     renderMapMarkers(data);
 
-    if (!isFitBounds) {
-        map.fitBounds(bounds);
-    }
+    map.fitBounds(bounds);
 }
 
 // build JSON data buttons
