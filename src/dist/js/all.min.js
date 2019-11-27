@@ -153,7 +153,7 @@ function buildFilterForm() {
     const selectDropdownList = document.getElementsByTagName('select');
     const checkboxList = document.getElementsByClassName('form-check-input');
 
-    document.getElementById('search').addEventListener('keyup', onFormFieldChange);
+    document.getElementById('filter_address').addEventListener('keyup', onFormFieldChange);
 
     for (let i = 0; i < selectDropdownList.length; i++) {
         const element = selectDropdownList[i];
@@ -182,25 +182,24 @@ function updateForm(data) {
     // get all unique property types from data
     const types = [...new Set(data.map(item => item.propertyType.name))];
     const typesId = [...new Set(data.map(item => item.propertyType.propertyTypeId))];
-
-    renderSelect(document.getElementById('filter_type'), types, typesId);
+    renderSelect(document.getElementById('filter_type'), getDataItemSorted(types, typesId));
 
     // render select "rooms"
     // get all unique rooms from data
     const roomsTotal = [...new Set(data.map(item => item.totalNumberOfRooms))];
-    renderSelect(document.getElementById('filter_roomstotal'), roomsTotal);
+    renderSelect(document.getElementById('filter_roomstotal'), getDataItemSorted(roomsTotal));
 
     // render select "broker"
     // get all unique brokers from data
     const brokerName = [...new Set(data.map(item => item.broker.brokerName))];
     const brokerId = [...new Set(data.map(item => item.broker.brokerId))];
 
-    renderSelect(document.getElementById('filter_broker'), brokerName, brokerId);
+    renderSelect(document.getElementById('filter_broker'), getDataItemSorted(brokerName, brokerId));
 
-    document.getElementById('search').value = '';
+    document.getElementById('filter_address').value = '';
 }
 
-function renderSelect(select, textobj, valueobj = null) {
+function renderSelect(select, textobj) {
     const emptyOpt = document.createElement('option');
 
     // remove all existing options
@@ -214,8 +213,8 @@ function renderSelect(select, textobj, valueobj = null) {
     // add options to select
     for (var i = 0; i < textobj.length; i++) {
         const opt = document.createElement('option');
-        opt.value = valueobj ? valueobj[i] : textobj[i];
-        opt.innerHTML = textobj[i];
+        opt.value = textobj[i].val;
+        opt.innerHTML = textobj[i].label;
         select.appendChild(opt);
     }
 }
@@ -234,7 +233,7 @@ function getFilteredData(elem) {
         priceArr1 = [],
         priceArr2 = [],
         formfieldsData = getFormData();
-
+        
     if (formfieldsData.filter_address) {
         tmpFilterArr = tmpFilterArr.filter(function (el) {
             return (el.address1).toLowerCase().indexOf((formfieldsData.filter_address).toLowerCase()) > -1;
@@ -277,10 +276,12 @@ function getFilteredData(elem) {
     } else {
         resultArr = tmpFilterArr;
     }
-    
+
     return resultArr;
 }
 
+// returns object with form element value
+// assigned to form element id for better overview
 function getFormData() {
     const formfieldsData = {};
     const inpList = document.getElementsByClassName('frm__inp');
@@ -288,9 +289,33 @@ function getFormData() {
     [...inpList].forEach((elem) => {
         if (elem.getAttribute('type') === 'checkbox') {
             formfieldsData[elem.getAttribute('id')] = elem.checked;
+        } else if (elem.getAttribute('id') === 'filter_address') {
+            formfieldsData[elem.getAttribute('id')] = elem.value;
         } else {
             formfieldsData[elem.getAttribute('id')] = elem.value != '' ? elem.value : null;
         }
     });
     return formfieldsData;
+}
+
+// returns sorted select dropdown data
+function getDataItemSorted(labelarr, valarr = null) {
+    let arr = [];
+    for (let i = 0; i < labelarr.length; i++) {
+        arr.push({
+            label: labelarr[i],
+            val: valarr ? valarr[i] : labelarr[i]
+        });
+    }
+    return arr.sort(sortObject);
+}
+
+function sortObject(a, b) {
+    if (a.label < b.label) {
+        return -1;
+    }
+    if (a.label > b.label) {
+        return 1;
+    }
+    return 0;
 }

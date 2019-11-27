@@ -9,9 +9,7 @@ var gulp = require("gulp"),
 
 var paths = {
     styles: {
-        // By using styles/**/*.sass we're telling gulp to check all folders for any sass file
         src: ["src/scss/*.scss"],
-        // Compiled files will end up in whichever folder it's found in (partials are not compiled)
         dest: "src/dist/css"
     },
     script: {
@@ -22,11 +20,11 @@ var paths = {
 
 function script() {
     return gulp
-    .src(paths.script.src)
-    .pipe(concat('all.min.js'))
-    .pipe(gulp.dest(paths.script.dest))
-    // Add browsersync stream pipe after compilation
-    .pipe(browserSync.stream());
+        .src(paths.script.src)
+        .pipe(concat('all.min.js'))
+        .pipe(gulp.dest(paths.script.dest))
+        // Add browsersync stream pipe after compilation
+        .pipe(browserSync.stream());
 }
 
 function style() {
@@ -41,7 +39,7 @@ function style() {
         .pipe(postcss([autoprefixer({
             browsers: ['last 2 versions'],
             cascade: false
-    }), cssnano()]))
+        }), cssnano()]))
         // Now add/write the sourcemaps
         .pipe(sourcemaps.write())
         .pipe(gulp.dest(paths.styles.dest))
@@ -61,9 +59,6 @@ function watch() {
         server: {
             baseDir: "./src"
         }
-        // If you are already serving your website locally using something like apache
-        // You can use the proxy setting to proxy that instead
-        // proxy: "yourlocal.dev"
     });
     gulp.watch(paths.styles.src, style);
     gulp.watch(paths.script.src, script);
@@ -73,10 +68,6 @@ function watch() {
     //gulp.watch("src/*.html", reload);
     gulp.watch("src/*.html").on('change', browserSync.reload);
 }
-
-// We don't have to expose the reload function
-// It's currently only useful in other functions
-
 
 // Don't forget to expose the task!
 exports.watch = watch
@@ -96,7 +87,6 @@ var build = gulp.parallel(style, script, watch);
 /*
  * You can still use `gulp.task` to expose tasks
  */
-//gulp.task('build', build);
 
 /*
  * Define default task that can be called by just running `gulp` from cli
