@@ -27,7 +27,6 @@ function initMap() {
         maxWidth: 250
     });
 
-    // load data when map is ready
     getMapData('../../data/data1.json', onDataLoaded);
 }
 
@@ -37,7 +36,7 @@ function renderMapMarkers(data) {
 
     // loop through all properties and render markers
     if (data.length) {
-        // if markers
+        // if any properties in data
         for (var i = 0; i < data.length; i++) {
             const elem = data[i];
 
@@ -91,10 +90,8 @@ function getMapData(url, callback) {
     xobj.onreadystatechange = function () {
         if (xobj.readyState == 4) {
             if (xobj.status == "200") {
-                // on success call callback method
                 callback(xobj.responseText);
             } else {
-                // very simple error handling
                 console.log(`Error: ${xobj.statusText}`);
             }
         }
@@ -103,9 +100,7 @@ function getMapData(url, callback) {
     xobj.send(null);
 }
 
-// on JSON data loaded callback
 function onDataLoaded(response) {
-    // parse json
     var data = JSON.parse(response);
 
     propertyData = data;
@@ -136,12 +131,10 @@ function buildButtons() {
 
     // apply eventlisterne to top/right data buttons 
     for (let i = 0; i < btnList.length; i++) {
-        const b = btnList[i];
-        b.addEventListener('click', onDataButtonClick);
+        btnList[i].addEventListener('click', onDataButtonClick);
     }
 }
 
-// on load JSON button click
 function onDataButtonClick(e) {
     const dataUrl = e.target.getAttribute('data-url');
 
@@ -193,7 +186,6 @@ function updateForm(data) {
     // get all unique brokers from data
     const brokerName = [...new Set(data.map(item => item.broker.brokerName))];
     const brokerId = [...new Set(data.map(item => item.broker.brokerId))];
-
     renderSelect(document.getElementById('filter_broker'), getDataItemSorted(brokerName, brokerId));
 
     document.getElementById('filter_address').value = '';
@@ -226,8 +218,8 @@ function clearSelectOptions(select) {
     }
 }
 
-// returns filtered data
-function getFilteredData(elem) {
+// returns filtered data on form change
+function getFilteredData() {
     let tmpFilterArr = propertyData,
         resultArr = [],
         priceArr1 = [],
